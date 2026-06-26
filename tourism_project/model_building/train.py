@@ -40,8 +40,8 @@ api = HfApi(token=os.getenv("HF_TOKEN"))
 # Load Train/Test Dataset
 # ==========================================================
 
-train_path = "/content/train.csv"
-test_path = "/content/test.csv"
+train_path = "hf://datasets/hiteshsharma/tourism-dataset/train.csv"
+test_path = "hf://datasets/hiteshsharma/tourism-dataset/test.csv"
 
 train_df = pd.read_csv(train_path)
 test_df = pd.read_csv(test_path)

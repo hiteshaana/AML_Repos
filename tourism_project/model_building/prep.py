@@ -130,8 +130,8 @@ test_df[target_col] = y_test
 # Save Files
 # ==========================================================
 
-train_file = "train.csv"
-test_file = "test.csv"
+train_file = "tourism_project/data/train.csv"
+test_file = "tourism_project/data/test.csv"
 
 train_df.to_csv(train_file, index=False)
 test_df.to_csv(test_file, index=False)
