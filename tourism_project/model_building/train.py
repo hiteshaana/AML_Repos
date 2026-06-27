@@ -35,7 +35,7 @@ from huggingface_hub.utils import RepositoryNotFoundError
 # Hugging Face API
 # ==========================================================
 
-api = HfApi(token=os.getenv("HF_TOKENN"))
+api = HfApi(token=os.getenv("HF_TOKEN"))
 
 # ==========================================================
 # Load Train/Test Dataset

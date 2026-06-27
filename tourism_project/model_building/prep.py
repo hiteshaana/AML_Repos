@@ -13,7 +13,7 @@ from huggingface_hub import HfApi
 # Hugging Face Configuration
 # ==========================================================
 
-api = HfApi(token=os.getenv("HF_TOKENN"))
+api = HfApi(token=os.getenv("HF_TOKEN"))
 
 DATASET_PATH = "hf://datasets/hiteshsharma/tourism-dataset/tourism.csv"
 # ==========================================================

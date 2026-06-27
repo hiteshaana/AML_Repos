@@ -4,11 +4,11 @@ import os
 
 repo_id = "hiteshsharma/tourism-dataset"
 
-token = os.getenv("HF_TOKENN")
+token = os.getenv("HF_TOKEN")
 
 if not token:
-    # Instruct the user on how to set the HF_TOKENN in Colab
-    raise ValueError("HF_TOKENN environment variable is missing. Please set it using `os.environ['HF_TOKEN'] = 'hf_your_token_here'` in a preceding cell, or use Colab's 'Secrets' feature (recommended for sensitive data).")
+    # Instruct the user on how to set the HF_TOKEN in Colab
+    raise ValueError("HF_TOKEN environment variable is missing. Please set it using `os.environ['HF_TOKEN'] = 'hf_your_token_here'` in a preceding cell, or use Colab's 'Secrets' feature (recommended for sensitive data).")
 
 api = HfApi(token=token)
 
