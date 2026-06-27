@@ -200,11 +200,13 @@ with mlflow.start_run(run_name="XGBoost GridSearch"):
     mlflow.log_metric("ROC AUC", roc_auc)
 
     # Log Model
-    mlflow.sklearn.save_model(
-        sk_model=best_model,
-        path="saved_model"
-    )
-    mlflow.log_artifacts("saved_model")
+    #mlflow.sklearn.save_model(
+        #sk_model=best_model,
+        #path="saved_model"
+    #)
+    joblib.dump(best_model, model_name)
+    mlflow.log_artifact(model_name)
+    #mlflow.log_artifacts("saved_model")
 print("\nBest Parameters")
 print(grid_search.best_params_)
 
