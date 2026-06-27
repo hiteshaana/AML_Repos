@@ -171,6 +171,9 @@ grid_search = GridSearchCV(
 
 )
 
+# Define model_name here so it's available within the MLflow run
+model_name = "best_tourism_prediction_model_v1.joblib"
+
 with mlflow.start_run(run_name="XGBoost GridSearch"):
 
     grid_search.fit(Xtrain, ytrain)
@@ -200,13 +203,9 @@ with mlflow.start_run(run_name="XGBoost GridSearch"):
     mlflow.log_metric("ROC AUC", roc_auc)
 
     # Log Model
-    #mlflow.sklearn.save_model(
-        #sk_model=best_model,
-        #path="saved_model"
-    #)
     joblib.dump(best_model, model_name)
     mlflow.log_artifact(model_name)
-    #mlflow.log_artifacts("saved_model")
+
 print("\nBest Parameters")
 print(grid_search.best_params_)
 
@@ -270,7 +269,7 @@ print("ROC AUC :", roc_auc_score(ytest,y_pred_test))
 # Save Model
 # ==========================================================
 
-model_name = "best_tourism_prediction_model_v1.joblib"
+# model_name = "best_tourism_prediction_model_v1.joblib" # Moved this definition up
 
 joblib.dump(
 
