@@ -7,7 +7,8 @@ import os
 import joblib
 import pandas as pd
 import xgboost as xgb
-
+import mlflow
+import mlflow.sklearn
 from sklearn.compose import make_column_transformer
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
@@ -34,7 +35,7 @@ from huggingface_hub.utils import RepositoryNotFoundError
 # Hugging Face API
 # ==========================================================
 
-api = HfApi(token=os.getenv("HF_TOKEN"))
+api = HfApi(token=os.getenv("HF_TOKENN"))
 
 # ==========================================================
 # Load Train/Test Dataset
@@ -170,8 +171,39 @@ grid_search = GridSearchCV(
 
 )
 
-grid_search.fit(Xtrain, ytrain)
+with mlflow.start_run(run_name="XGBoost GridSearch"):
 
+    grid_search.fit(Xtrain, ytrain)
+
+    print("\nBest Parameters")
+    print(grid_search.best_params_)
+
+    best_model = grid_search.best_estimator_
+
+    y_pred_train = best_model.predict(Xtrain)
+    y_pred_test = best_model.predict(Xtest)
+
+    accuracy = accuracy_score(ytest, y_pred_test)
+    precision = precision_score(ytest, y_pred_test)
+    recall = recall_score(ytest, y_pred_test)
+    f1 = f1_score(ytest, y_pred_test)
+    roc_auc = roc_auc_score(ytest, y_pred_test)
+
+    # Log Best Parameters
+    mlflow.log_params(grid_search.best_params_)
+
+    # Log Metrics
+    mlflow.log_metric("Accuracy", accuracy)
+    mlflow.log_metric("Precision", precision)
+    mlflow.log_metric("Recall", recall)
+    mlflow.log_metric("F1 Score", f1)
+    mlflow.log_metric("ROC AUC", roc_auc)
+
+    # Log Model
+    mlflow.sklearn.log_model(
+        best_model,
+        artifact_path="Best Model"
+    )
 print("\nBest Parameters")
 print(grid_search.best_params_)
 
@@ -179,7 +211,7 @@ print(grid_search.best_params_)
 # Best Model
 # ==========================================================
 
-best_model = grid_search.best_estimator_
+#best_model = grid_search.best_estimator_
 
 # ==========================================================
 # Prediction
@@ -291,4 +323,5 @@ api.upload_file(
 
 )
 
+mlflow.sklearn.autolog()
 print("Model Uploaded Successfully")
