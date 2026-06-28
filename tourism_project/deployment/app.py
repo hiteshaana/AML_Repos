@@ -5,7 +5,7 @@ import joblib
 from huggingface_hub import hf_hub_download
 
 # ==========================================================
-# Page Configuration
+# Application Page Configuration
 # ==========================================================
 
 st.set_page_config(

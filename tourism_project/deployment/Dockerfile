@@ -1,3 +1,6 @@
+# ==========================================================
+# Docker setup
+# =========================================
 # Use a minimal base image with Python 3.9 installed
 FROM python:3.9
 

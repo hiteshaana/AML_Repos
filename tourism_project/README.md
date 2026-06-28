@@ -1,5 +1,7 @@
 
-# Tourism Package Prediction
+# ==========================================================
+# Tourism Prediction
+# =========================
 
 This project predicts whether a customer is likely to purchase a tourism package using Machine Learning and MLOps.
 

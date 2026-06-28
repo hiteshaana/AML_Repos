@@ -1,6 +1,6 @@
 
 # ==========================================================
-# Import Libraries
+# Import Libraries and model training
 # ==========================================================
 
 import os
@@ -8,322 +8,90 @@ import joblib
 import pandas as pd
 import xgboost as xgb
 import mlflow
-import mlflow.sklearn
+
 from sklearn.compose import make_column_transformer
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
-
 from sklearn.model_selection import GridSearchCV
-
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
-    classification_report
-)
-
-from huggingface_hub import (
-    HfApi,
-    create_repo
-)
-
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, classification_report
+from huggingface_hub import HfApi, create_repo
 from huggingface_hub.utils import RepositoryNotFoundError
 
-# ==========================================================
-# Hugging Face API
-# ==========================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MLFLOW_DIR = os.path.join(BASE_DIR, "..", "mlruns")
+os.makedirs(MLFLOW_DIR, exist_ok=True)
 
-api = HfApi(token=os.getenv("HF_TOKEN"))
+mlflow.set_tracking_uri(f"file:{os.path.abspath(MLFLOW_DIR)}")
+mlflow.set_experiment("Tourism Package Prediction")
 
-# ==========================================================
-# Load Train/Test Dataset
-# ==========================================================
+HF_TOKEN = os.getenv("HF_TOKEN")
+if not HF_TOKEN:
+    raise ValueError("HF_TOKEN environment variable is missing.")
 
-train_path = "hf://datasets/hiteshsharma/tourism-dataset/train.csv"
-test_path = "hf://datasets/hiteshsharma/tourism-dataset/test.csv"
+api = HfApi(token=HF_TOKEN)
 
-train_df = pd.read_csv(train_path)
-test_df = pd.read_csv(test_path)
+train_df = pd.read_csv("hf://datasets/hiteshsharma/tourism-dataset/train.csv")
+test_df = pd.read_csv("hf://datasets/hiteshsharma/tourism-dataset/test.csv")
 
-print("Training Shape :", train_df.shape)
-print("Testing Shape  :", test_df.shape)
+target = "ProdTaken"
+Xtrain = train_df.drop(columns=[target])
+ytrain = train_df[target]
+Xtest = test_df.drop(columns=[target])
+ytest = test_df[target]
 
-# ==========================================================
-# Split Features and Target
-# ==========================================================
+numeric_features = Xtrain.select_dtypes(include=["int64","float64"]).columns.tolist()
+categorical_features = Xtrain.select_dtypes(include=["object"]).columns.tolist()
 
-target_col = "ProdTaken"
-
-Xtrain = train_df.drop(columns=[target_col])
-ytrain = train_df[target_col]
-
-Xtest = test_df.drop(columns=[target_col])
-ytest = test_df[target_col]
-
-# ==========================================================
-# Feature Lists
-# ==========================================================
-
-numeric_features = Xtrain.select_dtypes(
-    include=["int64", "float64"]
-).columns.tolist()
-
-categorical_features = Xtrain.select_dtypes(
-    include=["object"]
-).columns.tolist()
-
-print("\nNumeric Features")
-print(numeric_features)
-
-print("\nCategorical Features")
-print(categorical_features)
-
-# ==========================================================
-# Class Weight
-# ==========================================================
-
-class_weight = (
-    ytrain.value_counts()[0]
-    /
-    ytrain.value_counts()[1]
-)
-
-print("Scale Pos Weight :", class_weight)
-
-# ==========================================================
-# Preprocessing Pipeline
-# ==========================================================
+scale_pos_weight = ytrain.value_counts()[0] / ytrain.value_counts()[1]
 
 preprocessor = make_column_transformer(
-
     (StandardScaler(), numeric_features),
+    (OneHotEncoder(handle_unknown="ignore"), categorical_features)
+)
 
-    (
-        OneHotEncoder(handle_unknown="ignore"),
-        categorical_features
+pipeline = make_pipeline(
+    preprocessor,
+    xgb.XGBClassifier(
+        random_state=42,
+        eval_metric="logloss",
+        tree_method="hist",
+        n_jobs=-1,
+        scale_pos_weight=scale_pos_weight
     )
-
 )
-
-# ==========================================================
-# XGBoost Model
-# ==========================================================
-
-xgb_model = xgb.XGBClassifier(
-
-    random_state=42,
-
-    scale_pos_weight=class_weight,
-
-    eval_metric="logloss"
-
-)
-
-# ==========================================================
-# Hyperparameter Grid
-# ==========================================================
 
 param_grid = {
-
     "xgbclassifier__n_estimators":[100,200],
-
-    "xgbclassifier__max_depth":[3,5,7],
-
-    "xgbclassifier__learning_rate":[0.01,0.05,0.1],
-
-    "xgbclassifier__subsample":[0.8,1.0],
-
-    "xgbclassifier__colsample_bytree":[0.8,1.0]
-
+    "xgbclassifier__max_depth":[5,7],
+    "xgbclassifier__learning_rate":[0.05,0.1]
 }
 
-# ==========================================================
-# Pipeline
-# ==========================================================
-
-model_pipeline = make_pipeline(
-
-    preprocessor,
-
-    xgb_model
-
-)
-
-# ==========================================================
-# Grid Search
-# ==========================================================
-
-grid_search = GridSearchCV(
-
-    estimator=model_pipeline,
-
-    param_grid=param_grid,
-
-    cv=5,
-
-    scoring="recall",
-
-    n_jobs=-1,
-
-    verbose=2
-
-)
-
-# Define model_name here so it's available within the MLflow run
-model_name = "best_tourism_prediction_model_v1.joblib"
+grid = GridSearchCV(pipeline,param_grid=param_grid,cv=5,scoring="recall",n_jobs=-1,verbose=2)
 
 with mlflow.start_run(run_name="XGBoost GridSearch"):
+    model_name="best_tourism_prediction_model_v1.joblib"
+    grid.fit(Xtrain,ytrain)
+    best_model = grid.best_estimator_
+    preds = best_model.predict(Xtest)
 
-    grid_search.fit(Xtrain, ytrain)
-
-    print("\nBest Parameters")
-    print(grid_search.best_params_)
-
-    best_model = grid_search.best_estimator_
-
-    y_pred_train = best_model.predict(Xtrain)
-    y_pred_test = best_model.predict(Xtest)
-
-    accuracy = accuracy_score(ytest, y_pred_test)
-    precision = precision_score(ytest, y_pred_test)
-    recall = recall_score(ytest, y_pred_test)
-    f1 = f1_score(ytest, y_pred_test)
-    roc_auc = roc_auc_score(ytest, y_pred_test)
-
-    # Log Best Parameters
-    mlflow.log_params(grid_search.best_params_)
-
-    # Log Metrics
-    mlflow.log_metric("Accuracy", accuracy)
-    mlflow.log_metric("Precision", precision)
-    mlflow.log_metric("Recall", recall)
-    mlflow.log_metric("F1 Score", f1)
-    mlflow.log_metric("ROC AUC", roc_auc)
-
-    # Log Model
     joblib.dump(best_model, model_name)
+
     mlflow.log_artifact(model_name)
 
-print("\nBest Parameters")
-print(grid_search.best_params_)
 
-# ==========================================================
-# Best Model
-# ==========================================================
+print(classification_report(ytest,preds))
 
-#best_model = grid_search.best_estimator_
-
-# ==========================================================
-# Prediction
-# ==========================================================
-
-y_pred_train = best_model.predict(Xtrain)
-
-y_pred_test = best_model.predict(Xtest)
-
-# ==========================================================
-# Evaluation
-# ==========================================================
-
-print("\nTraining Report")
-
-print(
-
-    classification_report(
-
-        ytrain,
-
-        y_pred_train
-
-    )
-
-)
-
-print("\nTesting Report")
-
-print(
-
-    classification_report(
-
-        ytest,
-
-        y_pred_test
-
-    )
-
-)
-
-print("Accuracy :", accuracy_score(ytest,y_pred_test))
-
-print("Precision :", precision_score(ytest,y_pred_test))
-
-print("Recall :", recall_score(ytest,y_pred_test))
-
-print("F1 Score :", f1_score(ytest,y_pred_test))
-
-print("ROC AUC :", roc_auc_score(ytest,y_pred_test))
-
-# ==========================================================
-# Save Model
-# ==========================================================
-
-# model_name = "best_tourism_prediction_model_v1.joblib" # Moved this definition up
-
-joblib.dump(
-
-    best_model,
-
-    model_name
-
-)
-
-print("Model Saved Successfully")
-
-# ==========================================================
-# Upload Model to Hugging Face
-# ==========================================================
-
-repo_id = "hiteshsharma/tourism-prediction-model"
-
+repo_id="hiteshsharma/tourism-prediction-model"
 try:
-
-    api.repo_info(
-
-        repo_id=repo_id,
-
-        repo_type="model"
-
-    )
-
-    print("Model Repository Exists")
-
+    api.repo_info(repo_id=repo_id,repo_type="model")
 except RepositoryNotFoundError:
-
-    print("Creating Model Repository...")
-
-    create_repo(
-
-        repo_id=repo_id,
-
-        repo_type="model",
-
-        private=False
-
-    )
+    create_repo(repo_id=repo_id,repo_type="model",private=False)
 
 api.upload_file(
-
     path_or_fileobj=model_name,
-
     path_in_repo=model_name,
-
     repo_id=repo_id,
-
     repo_type="model"
-
 )
 
-mlflow.sklearn.autolog()
-print("Model Uploaded Successfully")
+print("Training completed successfully.")
