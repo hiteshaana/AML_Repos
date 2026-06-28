@@ -94,7 +94,8 @@ for col in cat_cols:
 # ==========================================================
 # Define Target
 # ==========================================================
-
+if "ProdTaken: 0" in df.columns:
+    df.drop(columns=["ProdTaken: 0"], inplace=True)
 target_col = "ProdTaken"
 
 X = df.drop(columns=[target_col])

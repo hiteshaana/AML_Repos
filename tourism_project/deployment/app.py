@@ -47,7 +47,6 @@ Enter the customer details below and click **Predict Package Purchase**.
 # ==========================================================
 # Customer Inputs
 # ==========================================================
-
 col1, col2 = st.columns(2)
 
 with col1:
@@ -187,27 +186,33 @@ if st.button("Predict Package Purchase"):
 
     input_df = pd.DataFrame({
 
-        "Age":[age],
-        "TypeofContact":[type_contact],
-        "CityTier":[city_tier],
-        "DurationOfPitch":[duration_pitch],
-        "Occupation":[occupation],
-        "Gender":[gender],
-        "NumberOfPersonVisiting":[persons],
-        "NumberOfFollowups":[followups],
-        "ProductPitched":[product],
-        "PreferredPropertyStar":[property_star],
-        "MaritalStatus":[marital],
-        "NumberOfTrips":[trips],
-        "Passport":[passport],
-        "PitchSatisfactionScore":[pitch_score],
-        "OwnCar":[own_car],
-        "NumberOfChildrenVisiting":[children],
-        "Designation":[designation],
-        "MonthlyIncome":[income]
+        "Age": [age],
+        "TypeofContact": [type_contact],
+        "CityTier": [city_tier],
+        "DurationOfPitch": [duration_pitch],
+        "Occupation": [occupation],
+        "Gender": [gender],
+        "NumberOfPersonVisiting": [persons],
+        "NumberOfFollowups": [followups],
+        "ProductPitched": [product],
+        "PreferredPropertyStar": [property_star],
+        "MaritalStatus": [marital],
+        "NumberOfTrips": [trips],
+        "Passport": [passport],
+        "PitchSatisfactionScore": [pitch_score],
+        "OwnCar": [own_car],
+        "NumberOfChildrenVisiting": [children],
+        "Designation": [designation],
+        "MonthlyIncome": [income]
 
     })
 
+    # Remove target column if it exists
+    if "ProdTaken" in input_df.columns:
+        input_df = input_df.drop(columns=["ProdTaken"])
+
+    prediction = model.predict(input_df)[0]
+    probability = model.predict_proba(input_df)[0][1]
     prediction = model.predict(input_df)[0]
 
     probability = model.predict_proba(input_df)[0][1]
